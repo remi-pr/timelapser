@@ -28,14 +28,15 @@ def get_params(argv):
 
     Returns
     --------
-    params: Dictionary containing values for all necessary parameters
-            angle, width, height, framerate, crop, vertical
+    params: Namespace object returned by `argparse`
+        Contains the values for all necessary parameters
+        angle, width, height, framerate, crop, vertical
 
     Possible flags
     ----------------
     -r = alpha ; --rotation = alpha
     -w = width ; --width = width
-    -h = height ; --height = height
+    -t = height ; --height = height
     -f = framerate ; --framerate = framerate
     -c = crop (?) ; --crop
 
@@ -80,19 +81,20 @@ def create_dir(dir_name):
 
 
 def check_args(params, image):
-    """ Check/Optimize the parameters retrieved from the command line
+    """
+    Check/Optimize the parameters retrieved from the command line
 
     Arguments:
     ---------
-    params: dict
-        Dictionary of parameters as returned by getParams
+    params: Namespace object returned by `argparse`
+        Parameters as returned by :py:func:`get_params`
     image: str
         File name of one example image used for the checking
 
     Return:
     -------
-    params: dict
-        Eventually updated dictionary
+    params: Namespace object
+        Eventually updated parameters
 
     """
     with Image(filename=image) as img:
@@ -131,8 +133,8 @@ def processing_pic(operation, params, pic_list):
     ----------
     operation: str
         Which operation to perform ('Resizing', 'Rotating')
-    params: dict
-        Dictionary of parameters as retrieved from getParams
+    params: Namespace object
+        Parameters as retrieved from :py:func:`get_params`
     pic_list: list
         List of all the pictures to resize (file names)
     """
@@ -156,8 +158,10 @@ def side_bars(params, pic_list):
 
     Arguments:
     ----------
-    params: Dictionary of parameters as retrieved from getParams
-    picList: List of all the pictures to resize (file names)
+    params: Namespace object
+        Parameters as retrieved from :py:func:`get_params`
+    picList: list
+        List of all the pictures to resize (file names)
     """
     puts(colored.cyan('Adding side bars'))
     sb_bar = progress.Bar(label='Sidebars', expected_size=len(pic_list))
