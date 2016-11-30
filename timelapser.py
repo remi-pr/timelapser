@@ -3,6 +3,7 @@
 import sys
 import getopt
 import os
+from os.path import expanduser, normpath
 from shutil import copy2
 from shutil import move
 from glob import glob
@@ -44,6 +45,7 @@ def get_params(argv):
     """
     # Default values for all parameters
     params = {
+        'path': '.',
         'ext': 'jpg',
         'angle': 0,
         'width': 1080,
@@ -62,6 +64,9 @@ def get_params(argv):
         # In case one argument is not valid or if a value is missing
         # usage()
         sys.exit(2)
+    if args:
+        # Only non named argument is the path
+        params['path'] = normpath(expanduser(args[0]))
     # Go through all the options and get the corresponding values
     for opt, arg in opts:
         if opt in ("-r", "--rotation"):
@@ -189,6 +194,10 @@ def side_bars(params, pic_list):
 if __name__ == "__main__":
     # Parse the command line arguments
     prms = get_params(sys.argv[1:])
+    # Pattern to search files
+    pattern = "*.{ext}".format(**prms)
+    # Get to the proper folder
+    os.chdir(prms['path'])
     # Check if original and processed folders already exist
     lstDirs = os.listdir('.')
     tidy = 'original' in lstDirs and 'processed' in lstDirs
@@ -200,7 +209,7 @@ if __name__ == "__main__":
         create_dir('processed')
         # Copy pictures to processed folder
         # Get a list of all the images in the folder
-        picList = glob("*.jpg")
+        picList = glob(pattern)
         copyBar = progress.Bar(label="Organizing files ",
                                expected_size=len(picList))
         for i, pic in enumerate(picList):
@@ -213,7 +222,7 @@ if __name__ == "__main__":
     os.chdir('processed')
     if tidy:
         # Get a list of all the images in the folder
-        picList = glob("*.jpg")
+        picList = glob(pattern)
     # Check the parameters
     prms = check_args(prms, picList[0])
     if not tidy:
@@ -238,7 +247,7 @@ if __name__ == "__main__":
         os.remove(tlFilename)
 
     command = ('mencoder',
-               'mf://*.JPG',
+               'mf://'+pattern,
                '-mf',
                'type=jpg:w=' + str(prms['width']) + ':h=' + str(
                    prms['height']) + ':fps=' + str(prms['framerate']),
