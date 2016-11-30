@@ -106,7 +106,7 @@ def check_args(params, image):
             params.tot_width = params.width
             # The width is fixed by the aspect ratio.
             # Black side bars will be added1
-            params.width = native_aspect_ratio * params.height
+            params.width = int(native_aspect_ratio * params.height)
             params.vertical = True
         else:
             params.vertical = False
@@ -116,7 +116,7 @@ def check_args(params, image):
             puts(colored.green('Aspect ratio is conserved. OK'))
         else:
             puts(colored.yellow('Aspect ratio not conserved.'))
-            params.height = params.width / native_aspect_ratio
+            params.height = int(params.width / native_aspect_ratio)
             with indent(5, quote=colored.yellow('>')):
                 puts(colored.yellow(
                     'Height changed to : {}'.format(params.height)))
