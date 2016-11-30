@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import getopt
+import argparse
 import os
 from os.path import expanduser, normpath
 from shutil import copy2
@@ -43,44 +43,24 @@ def get_params(argv):
     ---------------
     r = 0 ; w = 1080 ; h = 720 ; f = 7 ; c = ""
     """
-    # Default values for all parameters
-    params = {
-        'path': '.',
-        'ext': 'jpg',
-        'angle': 0,
-        'width': 1080,
-        'height': 720,
-        'framerate': 7,
-        'crop': ""
-    }
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path', help='Folder containing the pictures',
+                        default='.')
+    parser.add_argument('-e', '--extension', help='File extension to look for',
+                        default='jpg')
+    parser.add_argument('-r', '--rotation', help='Rotation angle to apply',
+                        default=0, type=float)
+    parser.add_argument('-w', '--width', help='New width of pictures',
+                        default=1080, type=int)
+    parser.add_argument('-t', '--height', help='New height of pictures',
+                        default=720, type=int)
+    parser.add_argument('-f', '--framerate', help='Framerate of the timelapse',
+                        default=7, type=int)
+    parser.add_argument('-c', '--crop', help='Crop window. Not implemented.')
 
-    try:
-        # Get all the valid arguments from the command line
-        opts, args = getopt.getopt(argv, "e:r:w:h:f:c:v",
-                                   ["extension=", "rotation=", "width=",
-                                    "height=", "framerate=", "crop=",
-                                    "vertical"])
-    except:
-        # In case one argument is not valid or if a value is missing
-        # usage()
-        sys.exit(2)
-    if args:
-        # Only non named argument is the path
-        params['path'] = normpath(expanduser(args[0]))
-    # Go through all the options and get the corresponding values
-    for opt, arg in opts:
-        if opt in ("-r", "--rotation"):
-            params['angle'] = int(arg)
-        elif opt in ("-e", "--extension"):
-            params['ext'] = str(arg)
-        elif opt in ("-w", "--width"):
-            params['width'] = float(arg)
-        elif opt in ("-h", "--height"):
-            params['height'] = float(arg)
-        elif opt in ("-f", "--framerate"):
-            params['framerate'] = int(arg)
-        elif opt in ("-c", "--crop"):
-            params['crop'] = arg
+    params = parser.parse_args(argv)
+    params.path = normpath(expanduser(params.path))
+
     return params
 
 
@@ -121,23 +101,23 @@ def check_args(params, image):
         if img.width < img.height:
             puts(colored.green('Pictures are vertical'))
             # Store the desired width for side bars width calculation
-            params.update({'totWidth': params['width']})
+            params.tot_width = params.width
             # The width is fixed by the aspect ratio.
             # Black side bars will be added1
-            params['width'] = native_aspect_ratio * params['height']
-            params.update({'vertical': True})
+            params.width = native_aspect_ratio * params.height
+            params.vertical = True
         else:
-            params.update({'vertical': False})
+            params.vertical = False
         # Check that the aspect ratio is respected
         if native_aspect_ratio - (
-                    float(params['width']) / params['height']) < .01:
+                    float(params.width) / params.height) < .01:
             puts(colored.green('Aspect ratio is conserved. OK'))
         else:
             puts(colored.yellow('Aspect ratio not conserved.'))
-            params['height'] = params['width'] / native_aspect_ratio
+            params.height = params.width / native_aspect_ratio
             with indent(5, quote=colored.yellow('>')):
                 puts(colored.yellow(
-                    'Height changed to : ' + str(params['height'])))
+                    'Height changed to : {}'.format(params.height)))
 
     return params
 
@@ -162,9 +142,9 @@ def processing_pic(operation, params, pic_list):
     for i, pic in enumerate(pic_list):
         with Image(filename=pic) as img:
             if operation == 'Resizing':
-                img.resize(int(params['width']), int(params['height']))
+                img.resize(params.width, params.height)
             elif operation == 'Rotating':
-                img.rotate(params['angle'])
+                img.rotate(params.rotation)
             img.save(filename=pic)
             op_bar.show(i + 1)
     puts('\n')
@@ -181,7 +161,7 @@ def side_bars(params, pic_list):
     """
     puts(colored.cyan('Adding side bars'))
     sb_bar = progress.Bar(label='Sidebars', expected_size=len(pic_list))
-    side_bars_width = int((params['totWidth'] - params['width']) / 2)
+    side_bars_width = int((params.tot_width - params.width) / 2)
     # Open and transform all pictures
     for i, pic in enumerate(pic_list):
         with Image(filename=pic) as img:
@@ -195,9 +175,9 @@ if __name__ == "__main__":
     # Parse the command line arguments
     prms = get_params(sys.argv[1:])
     # Pattern to search files
-    pattern = "*.{ext}".format(**prms)
+    pattern = "*.{}".format(prms.extension)
     # Get to the proper folder
-    os.chdir(prms['path'])
+    os.chdir(prms.path)
     # Check if original and processed folders already exist
     lstDirs = os.listdir('.')
     tidy = 'original' in lstDirs and 'processed' in lstDirs
@@ -209,10 +189,10 @@ if __name__ == "__main__":
         create_dir('processed')
         # Copy pictures to processed folder
         # Get a list of all the images in the folder
-        picList = glob(pattern)
+        pic_list = glob(pattern)
         copyBar = progress.Bar(label="Organizing files ",
-                               expected_size=len(picList))
-        for i, pic in enumerate(picList):
+                               expected_size=len(pic_list))
+        for i, pic in enumerate(pic_list):
             copy2(pic, "processed")
             # Move pictures to original folder
             move(pic, "original")
@@ -222,23 +202,23 @@ if __name__ == "__main__":
     os.chdir('processed')
     if tidy:
         # Get a list of all the images in the folder
-        picList = glob(pattern)
+        pic_list = glob(pattern)
     # Check the parameters
-    prms = check_args(prms, picList[0])
+    prms = check_args(prms, pic_list[0])
     if not tidy:
         # Resize the pictures
-        processing_pic('Resizing', prms, picList)
-    if prms['angle'] != 0:
+        processing_pic('Resizing', prms, pic_list)
+    if prms.rotation != 0:
         # Rotate them
-        processing_pic('Rotating', prms, picList)
+        processing_pic('Rotating', prms, pic_list)
 
     # If images are vertical then put black rectangles on the side
-    if prms['vertical']:
-        side_bars(prms, picList)
+    if prms.vertical:
+        side_bars(prms, pic_list)
 
     # Assemble the timelapse using mencoder
-    tlFilename = 'timelapse_' + str(prms['width']) + 'x' + str(
-        prms['height']) + '_' + str(prms['framerate']) + 'fps' + '.avi'
+    tlFilename = 'timelapse_{}x{}_{}fps.avi'.format(
+        prms.width, prms.height, prms.framerate)
 
     # Remove potentially conflicting files if they have the same name
     if os.path.isfile('../' + tlFilename):
@@ -249,8 +229,8 @@ if __name__ == "__main__":
     command = ('mencoder',
                'mf://'+pattern,
                '-mf',
-               'type=jpg:w=' + str(prms['width']) + ':h=' + str(
-                   prms['height']) + ':fps=' + str(prms['framerate']),
+               'type=jpg:w={}:h={}:fps={}'.format(prms.width, prms.height,
+                                      prms.framerate),
                '-ovc',
                'lavc',
                '-lavcopts',
